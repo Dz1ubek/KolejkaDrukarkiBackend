@@ -5,8 +5,11 @@ from app.schemas.user import (
     TokenPayload,
     UserBase,
     UserCreate,
+    UserPaginationResponse,
     UserResponse,
     UserRole,
+    UserRoleUpdate,
+    UserStatusUpdate,
     UserUpdate,
 )
 
@@ -19,7 +22,10 @@ __all__ = [
     "UserBase",
     "UserCreate",
     "UserUpdate",
+    "UserRoleUpdate",
+    "UserStatusUpdate",
     "UserResponse",
+    "UserPaginationResponse",
     "UserRole",
     "Token",
     "TokenPayload",

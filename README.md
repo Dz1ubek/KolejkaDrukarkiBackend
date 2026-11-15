@@ -20,12 +20,12 @@ KolejkaDrukarkiBackend/
 │   │   └── session.py              # SQLite engine, SessionLocal, get_db, init_db
 │   ├── models/
 │   │   ├── __init__.py
-│   │   └── user.py                 # SQLAlchemy User model & UserRole enum
+│   │   └── user.py                 # SQLAlchemy 2.0 User model & UserRole enum
 │   ├── schemas/
 │   │   ├── __init__.py
 │   │   ├── auth.py                 # Registration schema
 │   │   ├── item.py                 # Item Pydantic schemas
-│   │   └── user.py                 # User & Token Pydantic schemas
+│   │   └── user.py                 # User, Token & Admin Pydantic schemas
 │   └── api/
 │       ├── __init__.py
 │       ├── deps.py                 # get_db, get_current_user, get_current_active_admin
@@ -35,14 +35,16 @@ KolejkaDrukarkiBackend/
 │           └── endpoints/
 │               ├── __init__.py
 │               ├── auth.py         # Registration and login
+│               ├── admin.py        # Admin user management endpoints (/api/v1/admin/users)
 │               ├── health.py       # Health check endpoint (/api/v1/health)
 │               ├── items.py        # Example CRUD endpoints (/api/v1/items)
 │               └── users.py        # Authenticated user endpoints
 ├── tests/
 │   ├── __init__.py
 │   ├── test_api.py                 # API endpoints test suite
-│   ├── test_db_and_security.py     # SQLite, User model, bcrypt & JWT test suite
 │   └── test_user_endpoints.py      # Registration, login, and profile tests
+│   ├── test_admin.py               # Admin endpoints & RBAC test suite
+│   └── test_db_and_security.py     # SQLite, User model, bcrypt & JWT test suite
 ├── .env                            # Active environment configuration
 ├── .env.example                    # Template environment file
 ├── .gitignore
@@ -93,19 +95,25 @@ The server will start at:
 
 ---
 
-## 🧪 Running Tests
+## 🛡️ Admin Endpoints (`/api/v1/admin/users`)
 
-Execute all unit tests with `pytest`:
+All admin endpoints require an active administrator JWT token (`Authorization: Bearer <token>`).
 
-```powershell
-pytest
-```
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/admin/users` | List users with pagination (`limit`, `skip`), search (`search`), and filters (`role`, `is_active`) |
+| `GET` | `/api/v1/admin/users/{user_id}` | Retrieve specific user details by ID |
+| `PATCH` | `/api/v1/admin/users/{user_id}/role` | Promote/demote a user's role (`user` / `admin`) |
+| `PATCH` | `/api/v1/admin/users/{user_id}/status` | Activate/deactivate a user account |
+| `DELETE` | `/api/v1/admin/users/{user_id}` | Permanently delete a user account |
+
+*(Self-protection safeguards prevent an admin from demoting, deactivating, or deleting their own account).*
 
 ---
 
-## ⚙️ Configuration & Security
+## 🧪 Running Tests
 
-Environment variables are loaded from `.env` using `pydantic-settings`:
+Execute all unit tests with `pytest`:
 
 - `PROJECT_NAME`: Name displayed in Swagger docs
 - `ENVIRONMENT`: `development` | `production`
@@ -125,3 +133,6 @@ Environment variables are loaded from `.env` using `pydantic-settings`:
 - `GET /api/v1/users/me`: return the authenticated user's profile
 
 The profile endpoint requires a bearer token.
+```powershell
+pytest
+```

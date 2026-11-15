@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.user import UserRole
 
@@ -26,6 +26,14 @@ class UserUpdate(BaseModel):
     role: Optional[UserRole] = None
 
 
+class UserRoleUpdate(BaseModel):
+    role: UserRole = Field(..., examples=[UserRole.ADMIN])
+
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool = Field(..., examples=[False])
+
+
 class UserResponse(BaseModel):
     id: int
     email: str
@@ -36,6 +44,13 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserPaginationResponse(BaseModel):
+    total: int
+    items: List[UserResponse]
+    limit: int
+    skip: int
 
 
 class Token(BaseModel):
