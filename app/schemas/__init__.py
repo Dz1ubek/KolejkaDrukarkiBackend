@@ -1,4 +1,5 @@
 from app.schemas.item import ItemBase, ItemCreate, ItemResponse, ItemUpdate
+from app.schemas.auth import UserRegistration
 from app.schemas.user import (
     Token,
     TokenPayload,
@@ -17,6 +18,7 @@ __all__ = [
     "ItemCreate",
     "ItemUpdate",
     "ItemResponse",
+    "UserRegistration",
     "UserBase",
     "UserCreate",
     "UserUpdate",
