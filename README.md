@@ -23,6 +23,7 @@ KolejkaDrukarkiBackend/
 │   │   └── user.py                 # SQLAlchemy User model & UserRole enum
 │   ├── schemas/
 │   │   ├── __init__.py
+│   │   ├── auth.py                 # Registration schema
 │   │   ├── item.py                 # Item Pydantic schemas
 │   │   └── user.py                 # User & Token Pydantic schemas
 │   └── api/
@@ -33,12 +34,15 @@ KolejkaDrukarkiBackend/
 │           ├── router.py           # V1 API router aggregation
 │           └── endpoints/
 │               ├── __init__.py
+│               ├── auth.py         # Registration and login
 │               ├── health.py       # Health check endpoint (/api/v1/health)
-│               └── items.py        # Example CRUD endpoints (/api/v1/items)
+│               ├── items.py        # Example CRUD endpoints (/api/v1/items)
+│               └── users.py        # Authenticated user endpoints
 ├── tests/
 │   ├── __init__.py
 │   ├── test_api.py                 # API endpoints test suite
-│   └── test_db_and_security.py     # SQLite, User model, bcrypt & JWT test suite
+│   ├── test_db_and_security.py     # SQLite, User model, bcrypt & JWT test suite
+│   └── test_user_endpoints.py      # Registration, login, and profile tests
 ├── .env                            # Active environment configuration
 ├── .env.example                    # Template environment file
 ├── .gitignore
@@ -113,3 +117,11 @@ Environment variables are loaded from `.env` using `pydantic-settings`:
 - `ALGORITHM`: Token signing algorithm (`HS256`)
 - `ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration time for access tokens
 - `CORS_ORIGINS`: JSON list of permitted origins
+
+### User account endpoints
+
+- `POST /api/v1/auth/register`: register a regular user (`email`, `username`, `password`)
+- `POST /api/v1/auth/login`: submit OAuth2 form fields (`username` as email or username, and `password`) to receive a bearer JWT
+- `GET /api/v1/users/me`: return the authenticated user's profile
+
+The profile endpoint requires a bearer token.
