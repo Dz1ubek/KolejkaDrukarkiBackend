@@ -1,6 +1,6 @@
 from typing import Generator
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 from app.core.config import settings
 
 # SQLite requires check_same_thread=False for FastAPI concurrency
@@ -14,7 +14,10 @@ engine = create_engine(
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Base class for all SQLAlchemy 2.0 models."""
+    pass
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -28,7 +31,6 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     """Create database tables if they do not exist."""
-    # Import all models here so that Base.metadata has them registered
     import app.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
