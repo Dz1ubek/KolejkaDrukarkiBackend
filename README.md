@@ -1,6 +1,6 @@
 # FastAPI REST API Boilerplate
 
-A modern, clean, and modular boilerplate for building REST APIs with FastAPI, Pydantic v2, and Uvicorn on Windows 11 / Python 3.13.
+A modern, clean, and modular boilerplate for building REST APIs with FastAPI, Pydantic v2, SQLAlchemy (SQLite), and Uvicorn on Windows 11 / Python 3.13.
 
 ---
 
@@ -13,22 +13,32 @@ KolejkaDrukarkiBackend/
 │   ├── main.py                     # FastAPI application factory and entry point
 │   ├── core/
 │   │   ├── __init__.py
-│   │   └── config.py               # Pydantic Settings & environment variables
-│   ├── api/
+│   │   ├── config.py               # Pydantic Settings & environment variables
+│   │   └── security.py             # Password hashing (bcrypt) & JWT (pyjwt) utilities
+│   ├── db/
 │   │   ├── __init__.py
-│   │   └── v1/
-│   │       ├── __init__.py
-│   │       ├── router.py           # V1 API router aggregation
-│   │       └── endpoints/
-│   │           ├── __init__.py
-│   │           ├── health.py       # Health check endpoint (/api/v1/health)
-│   │           └── items.py        # Example CRUD endpoints (/api/v1/items)
-│   └── schemas/
+│   │   └── session.py              # SQLite engine, SessionLocal, get_db, init_db
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── user.py                 # SQLAlchemy User model & UserRole enum
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   ├── item.py                 # Item Pydantic schemas
+│   │   └── user.py                 # User & Token Pydantic schemas
+│   └── api/
 │       ├── __init__.py
-│       └── item.py                 # Pydantic request & response schemas
+│       ├── deps.py                 # get_db, get_current_user, get_current_active_admin
+│       └── v1/
+│           ├── __init__.py
+│           ├── router.py           # V1 API router aggregation
+│           └── endpoints/
+│               ├── __init__.py
+│               ├── health.py       # Health check endpoint (/api/v1/health)
+│               └── items.py        # Example CRUD endpoints (/api/v1/items)
 ├── tests/
 │   ├── __init__.py
-│   └── test_api.py                 # Pytest test suite with TestClient
+│   ├── test_api.py                 # API endpoints test suite
+│   └── test_db_and_security.py     # SQLite, User model, bcrypt & JWT test suite
 ├── .env                            # Active environment configuration
 ├── .env.example                    # Template environment file
 ├── .gitignore
@@ -70,6 +80,8 @@ Alternatively, run directly via Python:
 python -m app.main
 ```
 
+The SQLite database (`kolejka.db`) and tables are initialized automatically on startup.
+
 The server will start at:
 - **API Base URL**: `http://127.0.0.1:8000`
 - **Interactive Swagger UI**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
@@ -79,7 +91,7 @@ The server will start at:
 
 ## 🧪 Running Tests
 
-Execute unit tests with `pytest`:
+Execute all unit tests with `pytest`:
 
 ```powershell
 pytest
@@ -87,13 +99,17 @@ pytest
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Configuration & Security
 
-Environment variables are loaded from `.env` using `pydantic-settings`. Configurable variables include:
+Environment variables are loaded from `.env` using `pydantic-settings`:
 
 - `PROJECT_NAME`: Name displayed in Swagger docs
 - `ENVIRONMENT`: `development` | `production`
 - `DEBUG`: Boolean flag (`True` / `False`)
 - `HOST`: Server host IP (default: `127.0.0.1`)
 - `PORT`: Server port (default: `8000`)
+- `DATABASE_URL`: Database connection string (`sqlite:///./kolejka.db`)
+- `SECRET_KEY`: JWT secret key
+- `ALGORITHM`: Token signing algorithm (`HS256`)
+- `ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration time for access tokens
 - `CORS_ORIGINS`: JSON list of permitted origins
