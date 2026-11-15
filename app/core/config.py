@@ -11,6 +11,14 @@ class Settings(BaseSettings):
     HOST: str = "127.0.0.1"
     PORT: int = 8000
 
+    # Security & JWT
+    SECRET_KEY: str = "change-this-in-production-very-secret-key-32-chars-minimum"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
+
+    # Database
+    DATABASE_URL: str = "sqlite:///./kolejka.db"
+
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
