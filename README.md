@@ -1,6 +1,6 @@
-# FastAPI REST API Boilerplate
+# Kolejka Drukarki 3D API
 
-A modern, clean, and modular boilerplate for building REST APIs with FastAPI, Pydantic v2, SQLAlchemy (SQLite), and Uvicorn on Windows 11 / Python 3.13.
+A modern, clean, and modular REST API backend for a 3D printer queue service with automated pricing, Stripe compatibility, and role-based access control. Built with FastAPI, Pydantic v2, SQLAlchemy 2.0 (SQLite), and Uvicorn on Windows 11 / Python 3.13.
 
 ---
 
@@ -10,21 +10,24 @@ A modern, clean, and modular boilerplate for building REST APIs with FastAPI, Py
 KolejkaDrukarkiBackend/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                     # FastAPI application factory and entry point
+│   ├── main.py                     # FastAPI application factory and lifespan setup
 │   ├── core/
 │   │   ├── __init__.py
 │   │   ├── config.py               # Pydantic Settings & environment variables
+│   │   ├── pricing.py              # Server-side pricing formula calculation
 │   │   └── security.py             # Password hashing (bcrypt) & JWT (pyjwt) utilities
 │   ├── db/
 │   │   ├── __init__.py
-│   │   └── session.py              # SQLite engine, SessionLocal, get_db, init_db
+│   │   └── session.py              # SQLite engine, SessionLocal, get_db, init_db, first admin seed
 │   ├── models/
 │   │   ├── __init__.py
+│   │   ├── print_job.py            # SQLAlchemy 2.0 PrintJob model, PrintStatus, PaymentStatus
 │   │   └── user.py                 # SQLAlchemy 2.0 User model & UserRole enum
 │   ├── schemas/
 │   │   ├── __init__.py
 │   │   ├── auth.py                 # Registration schema
 │   │   ├── item.py                 # Item Pydantic schemas
+│   │   ├── print_job.py            # Print job schemas (Response, Pagination, AdminUpdate, Estimate)
 │   │   └── user.py                 # User, Token & Admin Pydantic schemas
 │   └── api/
 │       ├── __init__.py
@@ -34,17 +37,21 @@ KolejkaDrukarkiBackend/
 │           ├── router.py           # V1 API router aggregation
 │           └── endpoints/
 │               ├── __init__.py
-│               ├── auth.py         # Registration and login
 │               ├── admin.py        # Admin user management endpoints (/api/v1/admin/users)
+│               ├── admin_prints.py # Admin print queue endpoints (/api/v1/admin/prints)
+│               ├── auth.py         # Registration and login (/api/v1/auth)
 │               ├── health.py       # Health check endpoint (/api/v1/health)
 │               ├── items.py        # Example CRUD endpoints (/api/v1/items)
-│               └── users.py        # Authenticated user endpoints
+│               ├── prints.py       # User print order & file upload endpoints (/api/v1/prints)
+│               └── users.py        # Authenticated user endpoints (/api/v1/users)
 ├── tests/
 │   ├── __init__.py
-│   ├── test_api.py                 # API endpoints test suite
-│   └── test_user_endpoints.py      # Registration, login, and profile tests
 │   ├── test_admin.py               # Admin endpoints & RBAC test suite
-│   └── test_db_and_security.py     # SQLite, User model, bcrypt & JWT test suite
+│   ├── test_api.py                 # Basic API endpoints test suite
+│   ├── test_db_and_security.py     # SQLite, User model, bcrypt & JWT test suite
+│   ├── test_prints.py              # Print orders, file upload, pricing & queue tests
+│   └── test_user_endpoints.py      # Registration, login, and profile tests
+├── uploads/                        # Dedicated directory for uploaded 3D models (gitignored)
 ├── .env                            # Active environment configuration
 ├── .env.example                    # Template environment file
 ├── .gitignore
@@ -86,7 +93,7 @@ Alternatively, run directly via Python:
 python -m app.main
 ```
 
-The SQLite database (`kolejka.db`) and tables are initialized automatically on startup.
+The SQLite database (`kolejka.db`), storage folders, and initial admin account are created automatically on startup.
 
 The server will start at:
 - **API Base URL**: `http://127.0.0.1:8000`
@@ -95,44 +102,70 @@ The server will start at:
 
 ---
 
-## 🛡️ Admin Endpoints (`/api/v1/admin/users`)
+## 🔑 Initial Administrator Creation
 
-All admin endpoints require an active administrator JWT token (`Authorization: Bearer <token>`).
+On application startup, the system checks whether any admin account exists in the database. If not, it automatically seeds the first administrator using the credentials configured in `.env`:
+
+* `FIRST_SUPERUSER_EMAIL="admin@kolejka.local"`
+* `FIRST_SUPERUSER_USERNAME="admin"`
+* `FIRST_SUPERUSER_PASSWORD="AdminPassword123!"`
+
+---
+
+## 🖨️ 3D Print Queue & Orders
+
+### 1. User Print Order Endpoints (`/api/v1/prints`)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/admin/users` | List users with pagination (`limit`, `skip`), search (`search`), and filters (`role`, `is_active`) |
-| `GET` | `/api/v1/admin/users/{user_id}` | Retrieve specific user details by ID |
-| `PATCH` | `/api/v1/admin/users/{user_id}/role` | Promote/demote a user's role (`user` / `admin`) |
-| `PATCH` | `/api/v1/admin/users/{user_id}/status` | Activate/deactivate a user account |
-| `DELETE` | `/api/v1/admin/users/{user_id}` | Permanently delete a user account |
+| `GET` | `/api/v1/prints/estimate` | Calculate estimated price based on `estimated_weight_g` and `estimated_time_hours` |
+| `POST` | `/api/v1/prints` | Upload 3D file (`multipart/form-data`) + metadata & submit print order |
+| `GET` | `/api/v1/prints/my` | List current user's print jobs with pagination and status filter |
+| `GET` | `/api/v1/prints/{print_id}` | Get details of a print job (owner or admin only) |
+| `GET` | `/api/v1/prints/{print_id}/file` | Download the uploaded 3D model file (owner or admin only) |
+| `DELETE` | `/api/v1/prints/{print_id}` | Cancel print order (only allowed if still `pending_review`) |
 
-*(Self-protection safeguards prevent an admin from demoting, deactivating, or deleting their own account).*
+### 2. Admin Print Queue Endpoints (`/api/v1/admin/prints`)
+
+*Requires Administrator token (`Authorization: Bearer <token>`).*
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/admin/prints/queue` | View all jobs in the queue with filters (`status`, `payment_status`, `user_id`, `search`) |
+| `PATCH` | `/api/v1/admin/prints/{print_id}` | Update status (`ready_to_print`, `printing`, `completed`), payment status, notes, or correct `final_price` |
+| `DELETE` | `/api/v1/admin/prints/{print_id}` | Delete print job from queue and remove stored file from disk |
+
+---
+
+## 💰 Automated Pricing Formula
+
+Prices are stored and computed in integer **grosze** ($100\text{ grosze} = 1.00\text{ PLN}$) to prevent floating-point rounding errors and maintain full Stripe compatibility:
+
+$$\text{Estimated Price} = \text{Base Fee} + (\text{Weight} \times \text{Cost per Gram}) + (\text{Time} \times \text{Cost per Hour})$$
+
+Configurable in `.env`:
+* `BASE_PRINT_FEE_GROSZE=500` (5.00 PLN)
+* `COST_PER_GRAM_GROSZE=15` (0.15 PLN / g)
+* `COST_PER_HOUR_GROSZE=300` (3.00 PLN / hour)
+
+Admins can review orders in the queue and adjust `final_price` before or after payment.
+
+---
+
+## 💳 Stripe Readiness
+
+The `print_jobs` table includes fields ready for Stripe integration:
+* `payment_status`: `pending`, `paid`, `refunded`, `failed`
+* `stripe_session_id`: Checkout session ID
+* `stripe_payment_intent_id`: Payment intent ID
+* `currency`: `PLN` (or `EUR`, `USD`)
 
 ---
 
 ## 🧪 Running Tests
 
-Execute all unit tests with `pytest`:
+Execute the full automated test suite with `pytest`:
 
-- `PROJECT_NAME`: Name displayed in Swagger docs
-- `ENVIRONMENT`: `development` | `production`
-- `DEBUG`: Boolean flag (`True` / `False`)
-- `HOST`: Server host IP (default: `127.0.0.1`)
-- `PORT`: Server port (default: `8000`)
-- `DATABASE_URL`: Database connection string (`sqlite:///./kolejka.db`)
-- `SECRET_KEY`: JWT secret key
-- `ALGORITHM`: Token signing algorithm (`HS256`)
-- `ACCESS_TOKEN_EXPIRE_MINUTES`: Expiration time for access tokens
-- `CORS_ORIGINS`: JSON list of permitted origins
-
-### User account endpoints
-
-- `POST /api/v1/auth/register`: register a regular user (`email`, `username`, `password`)
-- `POST /api/v1/auth/login`: submit OAuth2 form fields (`username` as email or username, and `password`) to receive a bearer JWT
-- `GET /api/v1/users/me`: return the authenticated user's profile
-
-The profile endpoint requires a bearer token.
 ```powershell
 pytest
 ```
