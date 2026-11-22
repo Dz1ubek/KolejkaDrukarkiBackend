@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 from app.models.print_job import PaymentStatus, PrintStatus
 
@@ -19,7 +19,7 @@ class PrintJobResponse(PrintJobBase):
     estimated_price: int
     final_price: Optional[int] = None
     currency: str
-    status: PrintStatus
+    status: Union[PrintStatus, Literal["FAILED"]]
     payment_status: PaymentStatus
     stripe_session_id: Optional[str] = None
     user_id: int
