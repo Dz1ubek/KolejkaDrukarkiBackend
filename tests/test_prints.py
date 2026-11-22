@@ -280,3 +280,79 @@ def test_seed_first_admin(print_test_setup):
         seed_first_admin(db)
         admin_count_after = db.query(User).filter(User.role == UserRole.ADMIN.value).count()
         assert admin_count_before == admin_count_after
+
+
+def test_report_print_error_marks_job_failed_and_lists_errors(print_test_setup):
+    client = print_test_setup["client"]
+    user_headers = print_test_setup["user1_headers"]
+    other_user_headers = print_test_setup["user2_headers"]
+
+    files = {"file": ("part.stl", io.BytesIO(b"data"), "application/octet-stream")}
+    data = {"title": "Failed Part", "estimated_weight_g": "20", "estimated_time_hours": "1"}
+    job_response = client.post("/api/v1/prints", headers=user_headers, data=data, files=files)
+    assert job_response.status_code == 201
+    job_id = job_response.json()["id"]
+
+    error_response = client.post(
+        "/api/v1/print-errors",
+        headers=user_headers,
+        json={
+            "job_id": job_id,
+            "error_type": "FILAMENT_RUNOUT",
+            "description": "Filament ran out during printing",
+        },
+    )
+    assert error_response.status_code == 201
+    error = error_response.json()
+    assert error["job_id"] == job_id
+    assert error["reported_by_user_id"] == print_test_setup["user1_id"]
+    assert error["error_type"] == "FILAMENT_RUNOUT"
+    assert error["created_at"]
+
+    job_after_error = client.get(f"/api/v1/prints/{job_id}", headers=user_headers)
+    assert job_after_error.status_code == 200
+    assert job_after_error.json()["status"] == "FAILED"
+
+    own_errors = client.get("/api/v1/print-errors", headers=user_headers)
+    assert own_errors.status_code == 200
+    assert [item["id"] for item in own_errors.json()] == [error["id"]]
+    assert client.get("/api/v1/print-errors", headers=other_user_headers).json() == []
+
+
+def test_print_error_validation_permissions_and_job_filter(print_test_setup):
+    client = print_test_setup["client"]
+    user_headers = print_test_setup["user1_headers"]
+    other_user_headers = print_test_setup["user2_headers"]
+    admin_headers = print_test_setup["admin_headers"]
+
+    files = {"file": ("part.stl", io.BytesIO(b"data"), "application/octet-stream")}
+    data = {"title": "Private Part", "estimated_weight_g": "20", "estimated_time_hours": "1"}
+    job_response = client.post("/api/v1/prints", headers=user_headers, data=data, files=files)
+    job_id = job_response.json()["id"]
+
+    payload = {
+        "job_id": job_id,
+        "error_type": "OTHER",
+        "description": "Unexpected print failure",
+    }
+    assert client.post("/api/v1/print-errors", json=payload).status_code == 401
+    assert client.post("/api/v1/print-errors", headers=other_user_headers, json=payload).status_code == 403
+    assert client.post(
+        "/api/v1/print-errors",
+        headers=user_headers,
+        json={**payload, "job_id": 99999},
+    ).status_code == 404
+    assert client.post(
+        "/api/v1/print-errors",
+        headers=user_headers,
+        json={**payload, "error_type": "INVALID"},
+    ).status_code == 422
+
+    assert client.post("/api/v1/print-errors", headers=admin_headers, json=payload).status_code == 201
+    filtered_errors = client.get(
+        f"/api/v1/print-errors?job_id={job_id}",
+        headers=admin_headers,
+    )
+    assert filtered_errors.status_code == 200
+    assert len(filtered_errors.json()) == 1
+    assert filtered_errors.json()[0]["job_id"] == job_id

@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import api_router
+from app.api.v1.endpoints import print_errors
 from app.core.config import settings
 from app.db.session import init_db
 
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
         )
 
     application.include_router(api_router, prefix=settings.API_V1_STR)
+    application.include_router(print_errors.router, prefix=settings.API_V1_STR)
 
     @application.get("/", tags=["Root"])
     def root():

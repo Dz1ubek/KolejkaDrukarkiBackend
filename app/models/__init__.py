@@ -1,4 +1,13 @@
+from app.models.print_error import PrintError, PrintErrorType
 from app.models.print_job import PaymentStatus, PrintJob, PrintStatus
 from app.models.user import User, UserRole
 
-__all__ = ["User", "UserRole", "PrintJob", "PrintStatus", "PaymentStatus"]
+__all__ = [
+    "User",
+    "UserRole",
+    "PrintJob",
+    "PrintStatus",
+    "PaymentStatus",
+    "PrintError",
+    "PrintErrorType",
+]
